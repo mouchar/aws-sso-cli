@@ -47,7 +47,7 @@ func (as *AWSSSO) Authenticate(urlAction, browser string) error {
 
 	// check our cache
 	token := storage.CreateTokenResponse{}
-	err := as.store.GetCreateTokenResponse(as.StoreKey(), &token)
+	err := as.store.GetCreateTokenResponse(as.storeKey(), &token)
 	if err == nil && !token.Expired() {
 		as.Token = token
 		return nil
@@ -64,6 +64,10 @@ func (as *AWSSSO) Authenticate(urlAction, browser string) error {
 	}
 
 	return as.reauthenticate()
+}
+
+func (as *AWSSSO) storeKey() string {
+	return fmt.Sprintf("%s|%s", as.SsoRegion, as.StartUrl)
 }
 
 // reauthenticate talks to AWS SSO to generate a new AWS SSO AccessToken
@@ -121,7 +125,7 @@ const (
 // RegisterClientData for later steps and saves it to our secret store
 func (as *AWSSSO) registerClient(force bool) error {
 	log.Tracef("registerClient()")
-	err := as.store.GetRegisterClientData(as.StoreKey(), &as.ClientData)
+	err := as.store.GetRegisterClientData(as.storeKey(), &as.ClientData)
 	if !force && err == nil && !as.ClientData.Expired() {
 		log.Debug("Using RegisterClient cache")
 		return nil
@@ -145,7 +149,7 @@ func (as *AWSSSO) registerClient(force bool) error {
 		ClientSecretExpiresAt: resp.ClientSecretExpiresAt,
 		// TokenEndpoint:         *resp.TokenEndpoint,
 	}
-	err = as.store.SaveRegisterClientData(as.StoreKey(), as.ClientData)
+	err = as.store.SaveRegisterClientData(as.storeKey(), as.ClientData)
 	if err != nil {
 		log.WithError(err).Errorf("Unable to save RegisterClientData")
 	}
@@ -252,7 +256,7 @@ func (as *AWSSSO) createToken() error {
 		RefreshToken: aws.ToString(resp.RefreshToken), // per AWS docs, not currently implemented
 		TokenType:    aws.ToString(resp.TokenType),
 	}
-	err = as.store.SaveCreateTokenResponse(as.StoreKey(), as.Token)
+	err = as.store.SaveCreateTokenResponse(as.storeKey(), as.Token)
 	if err != nil {
 		log.WithError(err).Errorf("Unable to save CreateTokenResponse")
 	}
